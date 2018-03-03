@@ -4,6 +4,21 @@ class Device {
     this.gateway = null;
     this.isAuth = false;
   }
+
+  responseErrorByTypeNotEqual() {
+  }
+
+  responseErrorByGatewayNotExist() {
+  }
+
+  responseErrorByParseXML() {
+  }
+
+  responseErrorByGatewayEqual() {
+  }
+
+  responseErrorNotAuth() {
+  }
 }
 
 module.exports = Device;
