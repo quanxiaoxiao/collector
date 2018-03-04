@@ -15,7 +15,7 @@ _data.push(Buffer.from([
   0x8b,
   0xae,
   0x9b,
-  0x02,
+  0x01,
 ]));
 /*
 _data.push(Buffer.from([
@@ -66,7 +66,7 @@ const reader = Readable({
 
 const ERROR_TYPE_NOT_EQUAL = 'type is not equal';
 const ERROR_GATEWAY_NOT_EXIST = 'building or gateway is not exist';
-const ERROR_GATEWAY_EQUAL = 'building or gateway is not equal';
+const ERROR_GATEWAY_NOT_EQUAL = 'building or gateway is not equal';
 const ERROR_NOT_AUTH = 'is not auth';
 
 Observable.fromEvent(reader, 'data')
@@ -111,8 +111,8 @@ Observable.fromEvent(reader, 'data')
     type,
     data: (type === TYPE_CONTINUOUS || type === TYPE_REPORT) ? decode(data) : data,
   }))
-  .flatMap(({ data, type }) => {
-    return Observable.bindNodeCallback(new xml2js.Parser().parseString)(data)
+  .flatMap(({ data, type }) =>
+    Observable.bindNodeCallback(new xml2js.Parser().parseString)(data)
       .map(({ root: { common: [common] } }) => {
         if (common.type[0] !== typeMap[type]) {
           throw new Error(ERROR_TYPE_NOT_EQUAL);
@@ -123,35 +123,42 @@ Observable.fromEvent(reader, 'data')
         if (!device.isAuth && type !== TYPE_REQUEST) {
           throw new Error(ERROR_NOT_AUTH);
         }
-        if (device.building === null) {
-          device.building = common.building_id[0];
-          device.gateway = common.gateway_id[0];
+        if (device.isAuth &&
+          (device.building !== common.building_id[0] ||
+          device.gateway !== common.gateway_id[0])) {
+          throw new Error(ERROR_GATEWAY_NOT_EQUAL);
         }
-        if (device.building !== common.building_id[0] || device.gateway !== common.gateway[0]) {
-          throw new Error(ERROR_GATEWAY_EQUAL);
-        }
-        return common;
-      })
-      .catch((error) => {
-        switch (error.message) {
-          case ERROR_TYPE_NOT_EQUAL:
-            device.responseErrorByTypeNotEqual();
-            return;
-          case ERROR_GATEWAY_NOT_EXIST:
-            device.responseErrorByGatewayNotExist();
-            return;
-          case ERROR_GATEWAY_EQUAL:
-            device.responseErrorByGatewayEqual();
-            return;
-          case ERROR_NOT_AUTH:
-            device.responseErrorNotAuth();
-            return;
-          default: device.responseErrorByParseXML();
-        }
-      });
+        return { type };
+      }))
+  .catch((error) => {
+    switch (error.message) {
+      case ERROR_TYPE_NOT_EQUAL:
+        device.responseErrorByTypeNotEqual();
+        return;
+      case ERROR_GATEWAY_NOT_EXIST:
+        device.responseErrorByGatewayNotExist();
+        return;
+      case ERROR_GATEWAY_NOT_EQUAL:
+        device.responseErrorByGatewayNotEqual();
+        return;
+      case ERROR_NOT_AUTH:
+        device.responseErrorNotAuth();
+        return;
+      default: device.responseErrorByParseXML();
+    }
   })
-  .subscribe((data) => {
-     console.log(data);
+  .subscribe(({ type }) => {
+    switch (type) {
+      case TYPE_REQUEST:
+        device.responseSequence();
+        break;
+      case TYPE_MD5:
+        device.responseResult();
+        break;
+      case TYPE_CONTINUOUS:
+      case TYPE_REPORT:
+        device.responseAck();
+    }
   });
 
 
