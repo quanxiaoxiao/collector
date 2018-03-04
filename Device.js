@@ -1,16 +1,37 @@
-class Device {
+const { EventEmitter } = require('events');
+const crypto = require('crypto');
+const sequenceTemp = require('./signals/sequence.temp');
+const resultTemp = require('./signals/result.temp');
+
+class Device extends EventEmitter {
   constructor() {
+    super();
     this.building = null;
     this.gateway = null;
     this.isAuth = false;
+    this.sequence = null;
+    this.md5Salt = '12345';
   }
 
   responseSequence() {
-    console.log('response sequence');
+    this.sequence = Math.floor((Math.random() * 90000000) + 10000000).toString();
+    this.emit('response', sequenceTemp({
+      building: this.building,
+      gateway: this.gateway,
+      sequence: this.sequence,
+    }));
   }
 
-  responseResult() {
-    console.log('response result');
+  responseResult(md5) {
+    this.isAuth = crypto
+      .createHash('md5')
+      .update(`${this.sequence}${this.md5Salt}`)
+      .digest('hex') === md5;
+    this.emit('data', resultTemp({
+      building: this.building,
+      gateway: this.gateway,
+      success: this.isAuth,
+    }));
   }
 
   responseAck() {
