@@ -4,13 +4,14 @@ const xml2js = require('xml2js');
 const {
   seekStartPos,
   decode,
+  pack,
 } = require('./utils');
 const Device = require('./Device');
 
 const port = 3003;
 
-const TYPE_REQUEST = 1;
-const TYPE_SEQUENCE = 2;
+const TYPE_REQUEST = 0x01;
+const TYPE_SEQUENCE = 0x02;
 const TYPE_MD5 = 3;
 const TYPE_RESULT = 4;
 const TYPE_REPORT = 5;
@@ -23,6 +24,7 @@ const TYPE_TIME = 10;
 const typeMap = {
   [TYPE_CONTINUOUS]: 'continuous',
   [TYPE_REQUEST]: 'request',
+  [TYPE_MD5]: 'md5',
 };
 
 const ERROR_TYPE_NOT_EQUAL = 'type is not equal';
@@ -31,12 +33,13 @@ const ERROR_GATEWAY_NOT_EQUAL = 'building or gateway is not equal';
 const ERROR_NOT_AUTH = 'is not auth';
 
 const server = net.createServer((socket) => {
-  const device = new Device();
+  const device = new Device(socket.remoteAddress);
 
   Observable.fromEvent(socket, 'data')
     .map(chunk => (state) => {
       const buf = Buffer.concat([state.buf, chunk], state.buf.length + chunk.length);
       const startPos = seekStartPos(buf);
+      console.log('----', startPos, buf.toString());
       if (startPos === -1) {
         return {
           buf: buf.length > 40 * 1024 ? Buffer.from([]) : buf,
@@ -84,10 +87,10 @@ const server = net.createServer((socket) => {
           if (!common.building_id[0] || !common.gateway_id[0]) {
             throw new Error(ERROR_GATEWAY_NOT_EXIST);
           }
-          if (!device.isAuth && type !== TYPE_REQUEST) {
+          if (!device.isAuth && type !== TYPE_REQUEST && type !== TYPE_MD5) {
             throw new Error(ERROR_NOT_AUTH);
           }
-          if (device.isAuth &&
+          if ((device.isAuth || type === TYPE_MD5) &&
             (device.building !== common.building_id[0] ||
             device.gateway !== common.gateway_id[0])) {
             throw new Error(ERROR_GATEWAY_NOT_EQUAL);
@@ -124,7 +127,7 @@ const server = net.createServer((socket) => {
           device.responseSequence();
           break;
         case TYPE_MD5:
-          device.responseResult();
+          device.responseResult(other.id_validate[0].md5[0]);
           break;
         case TYPE_CONTINUOUS:
         case TYPE_REPORT:
@@ -132,8 +135,13 @@ const server = net.createServer((socket) => {
       }
     });
 
+  socket.on('close', () => {
+    console.log('client close');
+  });
+
   device.on('response', (msg) => {
-    console.log(msg);
+    socket.write(msg);
+    // socket.write(pack(msg));
   });
 });
 

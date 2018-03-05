@@ -4,8 +4,9 @@ const sequenceTemp = require('./signals/sequence.temp');
 const resultTemp = require('./signals/result.temp');
 
 class Device extends EventEmitter {
-  constructor() {
+  constructor(host) {
     super();
+    this.host = host;
     this.building = null;
     this.gateway = null;
     this.isAuth = false;
@@ -27,7 +28,7 @@ class Device extends EventEmitter {
       .createHash('md5')
       .update(`${this.sequence}${this.md5Salt}`)
       .digest('hex') === md5;
-    this.emit('data', resultTemp({
+    this.emit('response', resultTemp({
       building: this.building,
       gateway: this.gateway,
       success: this.isAuth,

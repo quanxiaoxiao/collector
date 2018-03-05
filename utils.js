@@ -43,7 +43,25 @@ const encode = (content) => {
   return encipher.update(contentBuf);
 };
 
+const pack = (content, type) => {
+  const startHeader = Buffer.from([
+    0x8b,
+    0xae,
+    0x9b,
+    type,
+  ]);
+  const dataLen = Buffer.alloc(4);
+  const contentData = Buffer.from(content, 'utf-8');
+  dataLen.writeUInt32LE(contentData.length);
+  return Buffer.concat([
+    startHeader,
+    dataLen,
+    contentData,
+  ], 4 + 4 + contentData.length);
+};
+
 module.exports = {
   seekStartPos,
   encode,
+  pack,
 };
