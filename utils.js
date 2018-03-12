@@ -43,6 +43,12 @@ const encode = (content) => {
   return encipher.update(contentBuf);
 };
 
+const decode = (buf) => {
+  const decipher = crypto.createDecipheriv('aes-128-cbc', key, key);
+  decipher.setAutoPadding(false);
+  return decipher.update(buf, 'binary', 'utf8');
+};
+
 const pack = (content, type) => {
   const startHeader = Buffer.from([
     0x8b,
@@ -63,5 +69,6 @@ const pack = (content, type) => {
 module.exports = {
   seekStartPos,
   encode,
+  decode,
   pack,
 };

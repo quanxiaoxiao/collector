@@ -7,8 +7,8 @@ module.exports = ({
   <common>
     <building_id>${building}</building_id>
     <gateway_id>${gateway}</gateway_id>
-    <type>request</type>
+    <type>notify</type>
   </common>
-  <id_validate operation="request" />
+  <heart_beat operation="notify">
 </root>
 `;
