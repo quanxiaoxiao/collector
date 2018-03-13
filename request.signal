@@ -1,0 +1,9 @@
+‹®›00f9<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<root>
+    <common>
+        <building_id>030001</building_id>
+        <gateway_id>BLJY2</gateway_id>
+        <type>request</type>
+    </common>
+    <id_validate operation="request" />
+</root>

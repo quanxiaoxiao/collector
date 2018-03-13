@@ -1,12 +1,8 @@
 const { Observable } = require('rxjs');
 const net = require('net');
 const xml2js = require('xml2js');
-const {
-  seekStartPos,
-  decode,
-  pack,
-} = require('./utils');
 const Device = require('./Device');
+const { seekStartPos } = require('./utils');
 
 const port = 3003;
 
@@ -32,11 +28,49 @@ const ERROR_GATEWAY_NOT_EXIST = 'building or gateway is not exist';
 const ERROR_GATEWAY_NOT_EQUAL = 'building or gateway is not equal';
 const ERROR_NOT_AUTH = 'is not auth';
 
-
 const server = net.createServer((socket) => {
   const device = new Device(socket.remoteAddress);
 
   Observable.fromEvent(socket, 'data')
+    .map(chunk => (state) => {
+      const buf = Buffer.concat([state.buf, chunk], state.buf.length + chunk.length);
+      const startPos = seekStartPos(buf);
+      if (startPos === -1) {
+        return {
+          buf: buf.length > 40 * 1024 ? Buffer.from([]) : buf,
+          data: Buffer.from([]),
+          type: null,
+        };
+      }
+      const data = buf.slice(startPos);
+      if (data.length < 8) {
+        return {
+          buf: data,
+          data: Buffer.from([]),
+          type: null,
+        };
+      }
+      const dataLen = data.readUInt32LE(4);
+      console.log(data.slice(4, 8), data.slice(8).length);
+      if (data.length - 8 < dataLen) {
+        return {
+          buf: data,
+          data: Buffer.from([]),
+          type: null,
+        };
+      }
+      return {
+        buf: data.slice(dataLen + 8),
+        data: data.slice(8, dataLen + 8),
+        type: data.readUInt8(3),
+      };
+    })
+    .scan((state, action) => action(state), {
+      buf: Buffer.from([]),
+      data: Buffer.from([]),
+      type: null,
+    })
+    .filter(state => state.data.length && state.type !== null)
     .flatMap(chunk => Observable.bindNodeCallback(new xml2js.Parser().parseString)(chunk))
     .map(({ root: { common, ...other } }) => ({
       building: common[0].building_id[0],
@@ -50,6 +84,7 @@ const server = net.createServer((socket) => {
       gateway,
       other,
     }) => {
+      console.log('+++++++++++++', building);
       if (type === 'request') {
         device.building = building;
         device.gateway = gateway;

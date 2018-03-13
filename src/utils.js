@@ -13,7 +13,7 @@ const startTags = [
   0x8bae9b10,
 ];
 
-const key = Buffer.from('0123456789123456');
+const key = Buffer.from('1234567812345678');
 
 const seekStartPos = (buf) => {
   let pos = 0;

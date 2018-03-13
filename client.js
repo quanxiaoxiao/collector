@@ -1,23 +1,14 @@
 const net = require('net');
-const crypto = require('crypto');
-const { pack } = require('./utils');
-const xml2js = require('xml2js');
-const requestTemp = require('./request.temp');
-const md5Temp = require('./md5.temp');
+const fs = require('fs');
 
 const client = new net.Socket();
 
-const building = '1234';
-const gateway = '01';
-
-client.connect(3003, '192.168.1.3', () => {
-  client.write(pack(requestTemp({
-    building,
-    gateway,
-  }), 0x01));
+client.connect(3003, 'localhost', () => {
+  client.write(fs.readFileSync('./request.signal'));
 });
 
 client.on('data', (data) => {
+  /*
   const parser = new xml2js.Parser();
   parser.parseString(data.toString(), (error, result) => {
     if (error) {
@@ -45,4 +36,5 @@ client.on('data', (data) => {
       console.log(data.toString());
     }
   });
+  */
 });
