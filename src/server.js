@@ -2,13 +2,13 @@ const { Observable } = require('rxjs');
 const net = require('net');
 const xml2js = require('xml2js');
 const Device = require('./Device');
-const { seekStartPos } = require('./utils');
+const { seekStartPos, pack } = require('./utils');
 
 const port = 3003;
 
 const TYPE_REQUEST = 0x01;
 const TYPE_SEQUENCE = 0x02;
-const TYPE_MD5 = 3;
+const TYPE_MD5 = 0x03;
 const TYPE_RESULT = 4;
 const TYPE_REPORT = 5;
 const TYPE_CONTINUOUS = 6;
@@ -50,18 +50,11 @@ const server = net.createServer((socket) => {
           type: null,
         };
       }
-      const dataLen = data.readUInt32LE(4);
-      console.log(data.slice(4, 8), data.slice(8).length);
-      if (data.length - 8 < dataLen) {
-        return {
-          buf: data,
-          data: Buffer.from([]),
-          type: null,
-        };
-      }
+      console.log(data);
+      console.log(data.toString());
       return {
-        buf: data.slice(dataLen + 8),
-        data: data.slice(8, dataLen + 8),
+        buf: Buffer.from([]),
+        data: data.slice(8),
         type: data.readUInt8(3),
       };
     })
@@ -71,6 +64,7 @@ const server = net.createServer((socket) => {
       type: null,
     })
     .filter(state => state.data.length && state.type !== null)
+    .map(state => state.data)
     .flatMap(chunk => Observable.bindNodeCallback(new xml2js.Parser().parseString)(chunk))
     .map(({ root: { common, ...other } }) => ({
       building: common[0].building_id[0],
@@ -84,14 +78,10 @@ const server = net.createServer((socket) => {
       gateway,
       other,
     }) => {
-      console.log('+++++++++++++', building);
       if (type === 'request') {
         device.building = building;
         device.gateway = gateway;
         device.responseSequence();
-        return;
-      }
-      if (device.building !== building || device.gateway !== gateway) {
         return;
       }
       if (type === 'md5') {
@@ -112,20 +102,12 @@ const server = net.createServer((socket) => {
     });
 
 
-  Observable.interval(3000)
-    .takeUntil(Observable.fromEvent(socket, 'close'))
-    .filter(() => device.isAuth)
-    .subscribe(() => {
-      device.responseQuery();
-    });
-
   socket.on('close', () => {
     console.log('client close');
   });
 
-  device.on('response', (msg) => {
-    socket.write(msg);
-    // socket.write(pack(msg));
+  device.on('response', (msg, type) => {
+    socket.write(pack(msg, type));
   });
 });
 

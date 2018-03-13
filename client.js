@@ -8,6 +8,7 @@ client.connect(3003, 'localhost', () => {
 });
 
 client.on('data', (data) => {
+  console.log(data.toString());
   /*
   const parser = new xml2js.Parser();
   parser.parseString(data.toString(), (error, result) => {

@@ -5,6 +5,9 @@ const resultTemp = require('./signals/result.temp');
 const queryTemp = require('./signals/query.temp');
 const heartbeatTemp = require('./signals/heartbeat.temp');
 
+const TYPE_SEQUENCE = 0x02;
+const TYPE_MD5 = 0x03;
+
 class Device extends EventEmitter {
   constructor(host) {
     super();
@@ -22,7 +25,7 @@ class Device extends EventEmitter {
       building: this.building,
       gateway: this.gateway,
       sequence: this.sequence,
-    }));
+    }), TYPE_SEQUENCE);
   }
 
   responseResult(md5) {
@@ -45,12 +48,13 @@ class Device extends EventEmitter {
       .update(`${this.sequence}${this.md5Salt}`)
       .digest('hex') === md5;
       */
+    console.log('---------md5', this.sequence, md5);
     this.isAuth = true;
     this.emit('response', resultTemp({
       building: this.building,
       gateway: this.gateway,
       success: this.isAuth,
-    }));
+    }), TYPE_MD5);
   }
 
   responseHeartbeat() {

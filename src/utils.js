@@ -56,9 +56,17 @@ const pack = (content, type) => {
     0x9b,
     type,
   ]);
+  const dataLen = Buffer.from([
+    0x30,
+    0x30,
+    0x66,
+    0x39,
+  ]);
+  /*
   const dataLen = Buffer.alloc(4);
-  const contentData = Buffer.from(content, 'utf-8');
   dataLen.writeUInt32LE(contentData.length);
+  */
+  const contentData = Buffer.from(content, 'utf-8');
   return Buffer.concat([
     startHeader,
     dataLen,
