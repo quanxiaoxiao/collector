@@ -1,12 +1,13 @@
 const { EventEmitter } = require('events');
 const crypto = require('crypto');
+const ackTemp = require('./signals/ack.temp');
 const sequenceTemp = require('./signals/sequence.temp');
 const resultTemp = require('./signals/result.temp');
-const queryTemp = require('./signals/query.temp');
-const heartbeatTemp = require('./signals/heartbeat.temp');
 
 const TYPE_SEQUENCE = 0x02;
 const TYPE_MD5 = 0x03;
+const TYPE_DATA_ACK = 7;
+const TYPE_CONTINUOUS_ACK = 8;
 
 class Device extends EventEmitter {
   constructor(host) {
@@ -16,7 +17,7 @@ class Device extends EventEmitter {
     this.gateway = null;
     this.isAuth = false;
     this.sequence = null;
-    this.md5Salt = '12345';
+    this.md5Salt = '1234567812345678';
   }
 
   responseSequence() {
@@ -29,27 +30,10 @@ class Device extends EventEmitter {
   }
 
   responseResult(md5) {
-    // 46217562 eb6c95f789d5a6872b89a7806c6c71ed
-    /*
-    <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
-      <root>
-          <common>
-                  <building_id>11111111111</building_id>
-                          <gateway_id>00090020</gateway_id>
-                                  <type>auto_history</type>
-                                      </common>
-          <supcon operation="auto_history" />
-      </root>
-      */
-
-    /*
     this.isAuth = crypto
       .createHash('md5')
-      .update(`${this.sequence}${this.md5Salt}`)
+      .update(`${this.md5Salt}${this.sequence}`)
       .digest('hex') === md5;
-      */
-    console.log('---------md5', this.sequence, md5);
-    this.isAuth = true;
     this.emit('response', resultTemp({
       building: this.building,
       gateway: this.gateway,
@@ -57,43 +41,13 @@ class Device extends EventEmitter {
     }), TYPE_MD5);
   }
 
-  responseHeartbeat() {
-    this.emit('response', heartbeatTemp({
+  responseAck({ type, sequence }) {
+    this.emit('response', ackTemp({
       building: this.building,
       gateway: this.gateway,
-    }));
-  }
-
-
-  responseQuery() {
-    this.emit('response', queryTemp({
-      building: this.building,
-      gateway: this.gateway,
-    }));
-  }
-
-  responseAck() {
-    console.log('++++++++++++++++response ack');
-  }
-
-  responseErrorByTypeNotEqual() {
-    console.log('type error');
-  }
-
-  responseErrorByGatewayNotExist() {
-    console.log('gateway not exist');
-  }
-
-  responseErrorByParseXML() {
-    console.log('parse xml error');
-  }
-
-  responseErrorByGatewayNotEqual() {
-    console.log('gateway not equal');
-  }
-
-  responseErrorNotAuth() {
-    console.log('not auth');
+      type,
+      sequence,
+    }), type === 'report' ? TYPE_DATA_ACK : TYPE_CONTINUOUS_ACK);
   }
 }
 

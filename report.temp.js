@@ -7,9 +7,9 @@ module.exports = ({
   <common>
     <building_id>${building}</building_id>
     <gateway_id>${gateway}</gateway_id>
-    <type>report</type>
+    <type>continuous</type>
   </common>
-  <data operation="report">
+  <data operation="continuous">
     <sequence>201803061010</sequence>
     <parse>yes</parse>
     <time>201803061010</time>
