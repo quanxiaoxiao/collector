@@ -7,12 +7,18 @@ const { pack } = require('./utils');
 const port = 3003;
 
 const server = net.createServer((socket) => {
+  console.log(`------connection: ${socket.remoteAddress}`);
   const device = new Device(socket.remoteAddress);
 
-  const close$ = Observable.fromEvent(socket, 'close');
+  const close$ = Observable.fromEvent(socket, 'close')
+    .take(1);
+
   Observable.fromEvent(socket, 'data')
     .takeUntil(close$)
     .map(chunk => chunk.slice(8))
+    .do((chunk) => {
+      console.log(chunk.toString());
+    })
     .flatMap(chunk => Observable.bindNodeCallback(new xml2js.Parser().parseString)(chunk))
     .map(({ root: { common, ...other } }) => ({
       building: common[0].building_id[0],
@@ -32,30 +38,44 @@ const server = net.createServer((socket) => {
         device.responseSequence();
         return;
       }
+      if (!device.building || !device.gateway) {
+        return;
+      }
       if (type === 'md5') {
         device.responseResult(other.id_validate[0].md5[0]);
         return;
       }
-      if (!device.isAuth || !device.building || !device.gateway) {
+      if (!device.isAuth) {
         return;
       }
-      console.log('----------type:', type);
-      console.log('------------data:', JSON.stringify(other.data));
+
       if (type === 'report' || type === 'continuous') {
+        const [data] = other.data;
+        let isLast = false;
+        if (type === 'continuous' && Array.isArray(data.total) && Array.isArray(data.current)) {
+          isLast = data.total[0] === data.current[0];
+        }
         device.responseAck({
           type: type === 'report' ? 'data' : 'continuous',
-          sequence: other.data[0].sequence[0],
+          sequence: data.sequence[0],
+          isLast,
+          data,
         });
       }
     });
 
-  close$.subscribe(() => {
-    console.log('client close');
-  });
-
-
-  device.on('response', (msg, type) => {
+  function response(msg, type) {
     socket.write(pack(msg, type));
+  }
+
+  device.on('response', response);
+
+  close$.subscribe(() => {
+    device.removeListener('response', response);
+    if (device.isAuth) {
+      device.offline();
+    }
+    console.log('---------- client close');
   });
 });
 

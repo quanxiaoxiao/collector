@@ -1,43 +1,60 @@
-const net = require('net');
-const xml2js = require('xml2js');
-const requestTemp = require('./request.temp');
-const md5Temp = require('./md5.temp');
-const reportTemp = require('./report.temp');
+const { Schema, Types } = require('mongoose');
+const { collector, energy } = require('./src/controllers');
 
-const client = new net.Socket();
-const building = '11111111111';
-const gateway = '00090020';
+const building = '030001';
+const gateway = 'BLJY2';
+const key = '1234567812345678';
+const address = '192.168.0.118';
 
-client.connect(3003, 'localhost', () => {
-  client.write(requestTemp({
-    building,
-    gateway,
-  }));
-});
 
-client.on('data', (chunk) => {
-  const parser = new xml2js.Parser();
-  console.log(chunk.toString());
-  parser.parseString(chunk.toString(), (error, doc) => {
-    const {
-      root: {
-        common: [common],
-      },
-    } = doc;
-    const [type] = common.type;
-    if (type === 'sequence') {
-      client.write(md5Temp({
-        building,
-        gateway,
-        md5: 'asdfsdf',
-      }));
-    }
-    if (type === 'result') {
-      client.write(reportTemp({
-        building,
-        gateway,
-        md5: 'asdfsdf',
-      }));
-    }
+collector.find({ building, gateway }, (error, device) => {
+  energy.queryByCollector(device._id, (err, list) => {
+    console.log(list);
   });
+
+/*
+  energy.add({
+    collector: device._id,
+    meter: 'meter',
+    functional: 'functional',
+    coding: 'BG',
+    value: 33,
+    time: Date.now(),
+  }, (err, result) => {
+    console.log(err, result);
+  });
+  energy.findOneAndUpdate({
+    collector: device._id,
+    meter: 'meter',
+    functional: 'functional',
+    coding: 'BG',
+    value: 38,
+    time: Date.now(),
+  }, (err, result) => {
+    console.log(result);
+  });
+  energy.getAll((err, list) => {
+    console.log(list);
+  });
+  */
 });
+
+
+/*
+collector.online({ building, gateway, address }, (error, result) => {
+  console.log(error, result);
+});
+*/
+
+
+/*
+collector.offline({ building, gateway }, (error, result) => {
+  console.log(error, result);
+});
+*/
+
+/*
+collector.add({ building, gateway, key }, (error, result) => {
+  console.log(error, result);
+});
+*/
